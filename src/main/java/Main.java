@@ -1,6 +1,3 @@
-import line.Line;
-import line.LineParameter;
-
 import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -10,117 +7,102 @@ public class Main {
     private final static String INPUT_FILE_PATH = "src/main/resources/lng.csv";
     private final static String OUTPUT_FILE_PATH = "src/main/resources/output.txt";
 
+    private static Set<Line> uniqueLine = new HashSet<>();
+    private static Map<LineParameter, Set<Line>> groupedByParameters = new HashMap<>();
+    private static Map<LineParameter, Set<Line>> withoutSingle = new HashMap<>();
+    private static Set<Set<Line>> groups = new HashSet<>();
+
     public static void main(String[] args) {
 
         long start = System.currentTimeMillis();
 
-        List<Set<Line>> groups = getDisjointGroupsOfLines();
-        writeGroupsToOutputFile(groups);
+        try (BufferedReader br = new BufferedReader(new FileReader(INPUT_FILE_PATH))){
 
-        double timeInSeconds =((double) (System.currentTimeMillis() - start) ) / 1000;
-        System.out.println(timeInSeconds + " seconds");
-
-    }
-
-    private static void writeGroupsToOutputFile(List<Set<Line>> groups) {
-
-        try {
-            BufferedWriter br = new BufferedWriter(new FileWriter(OUTPUT_FILE_PATH));
-            StringBuilder builder = new StringBuilder();
-
-            builder.append("Всего групп: ").append(groups.size()).append("\n");
-
-            for (int i = 0; i < groups.size(); i++) {
-                builder.append("Группа ").append(i + 1).append("\n");
-                groups.get(i).forEach(line -> builder.append(line).append("\n"));
-            }
-
-            br.write(builder.toString());
-            br.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static List<Set<Line>> getDisjointGroupsOfLines() {
-
-        Map<LineParameter, Set<Line>> groupsOfLinesGroupedByOneParam = getGroupsOfLinesGroupedByOneParam();
-        Map<LineParameter, Set<Line>> groupsOfLinesWithoutSingleLineGroups = removeGroupsWithSingleLine(groupsOfLinesGroupedByOneParam);
-
-        List<Set<Line>> groups = unionIntersectedGroups(groupsOfLinesWithoutSingleLineGroups);
-        groups = groups.stream().sorted(Comparator.comparing(Set::size)).collect(Collectors.toList());
-        Collections.reverse(groups);
-
-        return groups;
-    }
-
-    private static List<Set<Line>> unionIntersectedGroups(Map<LineParameter, Set<Line>> groupsOfLinesWithoutSingle) {
-        List<Set<Line>> groups = new ArrayList<>();
-        boolean isAlreadyInGroup;
-
-        for (Map.Entry<LineParameter, Set<Line>> e1 : groupsOfLinesWithoutSingle.entrySet()) {
-            isAlreadyInGroup = false;
-            for (Set<Line> g : groups) {
-                if (isIntersect(g, e1.getValue())) {
-                    g.addAll(e1.getValue());
-                    isAlreadyInGroup = true;
-                    break;
-                }
-            }
-            if (!isAlreadyInGroup) {
-                groups.add(e1.getValue());
-            }
-        }
-        return groups;
-    }
-
-    private static Map<LineParameter, Set<Line>> removeGroupsWithSingleLine(Map<LineParameter, Set<Line>> groupsOfLinesGroupedByOneParam) {
-
-        Map<LineParameter, Set<Line>> withoutSingle = new HashMap<>();
-
-        for (LineParameter param : groupsOfLinesGroupedByOneParam.keySet()) {
-            Set<Line> lines = groupsOfLinesGroupedByOneParam.get(param);
-            if (lines.size() > 1) {
-                withoutSingle.put(param, lines);
-            }
-        }
-        return withoutSingle;
-    }
-
-    private static Map<LineParameter, Set<Line>> getGroupsOfLinesGroupedByOneParam() {
-
-        Map<LineParameter, Set<Line>> uniqueParams = new HashMap<>();
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(INPUT_FILE_PATH))) {
             String line;
-            while ((line = reader.readLine()) != null) {
-                String[] l = line.replaceAll("\"", "").split(";");
-                if (l.length == 3) {
-                    Line lineObject = new Line(l);
-                    for (LineParameter param : lineObject.getParams()) {
-                        if (!param.getValue().isBlank()) {
-                            Set<Line> lineList = uniqueParams.getOrDefault(param, new HashSet<>());
-                            lineList.add(lineObject);
-                            uniqueParams.put(param, lineList);
-                        }
+            while((line = br.readLine()) != null) {
+                checkLine(line);
+            }
+
+            groupedByParameters
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().size() > 1)
+                    .forEach(entry -> withoutSingle.put(entry.getKey(), entry.getValue()));
+
+            boolean isAlreadyInGroup;
+
+            for(Set<Line> g1 : withoutSingle.values()) {
+                isAlreadyInGroup = false;
+                for(Set<Line> g2 : groups) {
+                    if(isIntersect(g1, g2)) {
+                        g2.addAll(g1);
+                        isAlreadyInGroup = true;
+                        break;
                     }
                 }
+                if(!isAlreadyInGroup) {
+                    groups.add(g1);
+                }
             }
+            List<Set<Line>> sortedGroups = groups.stream().sorted(Comparator.comparing(Set::size)).collect(Collectors.toList());
+            Collections.reverse(sortedGroups);
+            writeToFile(sortedGroups);
+
+            double time = ((double) (System.currentTimeMillis() - start)) / 1000;
+
+            System.out.println(time);
+            
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return uniqueParams;
+
     }
 
-    private static boolean isIntersect(Set<Line> l1, Set<Line> l2) {
-        for(Line line : l1) {
-            if(l2.contains(line)) {
+    private static void writeToFile(List<Set<Line>> sortedGroups) {
+        int groupNumber = 1;
+        StringBuilder builder = new StringBuilder();
+        builder.append("Всего групп: ").append(sortedGroups.size()).append("\n");
+        for(Set<Line> group : sortedGroups) {
+            builder.append("Группа ").append(groupNumber).append("\n");
+            for(Line line : group) {
+                builder.append(line).append("\n");
+            }
+            groupNumber++;
+        }
+
+        try {
+            BufferedWriter bw = new BufferedWriter(new FileWriter(OUTPUT_FILE_PATH));
+            bw.write(builder.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean isIntersect(Set<Line> g1, Set<Line> g2) {
+        for(Line l : g1) {
+            if(g2.contains(l)) {
                 return true;
             }
         }
         return false;
     }
 
+    private static void checkLine(String l) {
 
+        String[] lineParams = l.replaceAll("\"", "").split(";", -1);
+
+        if (lineParams.length == 3) {
+            Line line = new Line(lineParams);
+            if (!line.isAllParametersEmpty() && !uniqueLine.contains(line)) {
+                uniqueLine.add(line);
+                for (LineParameter parameter : line.getParameters()) {
+                    if (!parameter.getValue().isBlank()) {
+                        Set<Line> g = groupedByParameters.getOrDefault(parameter, new HashSet<>());
+                        g.add(line);
+                        groupedByParameters.put(parameter, g);
+                    }
+                }
+            }
+        }
+    }
 }

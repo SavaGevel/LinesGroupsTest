@@ -1,5 +1,3 @@
-package line;
-
 import java.util.Objects;
 
 public class LineParameter {
@@ -23,7 +21,7 @@ public class LineParameter {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass() || this.value.isBlank()) return false;
+        if (o == null || getClass() != o.getClass()) return false;
         LineParameter that = (LineParameter) o;
         return position == that.position && Objects.equals(value, that.value);
     }
