@@ -3,14 +3,14 @@ import java.util.*;
 
 public class Main {
 
-    private final static String INPUT_FILE_PATH = "src/main/resources/lng.csv";
+    private final static String INPUT_FILE_PATH = "src/main/resources/lng-big.csv";
     private final static String OUTPUT_FILE_PATH = "src/main/resources/output.txt";
 
     private static Set<Line> uniqueLine = new HashSet<>();
     private static Map<LineParameter, ArrayList<Line>> groupedByParameters = new HashMap<>();
     private static Map<LineParameter, ArrayList<Line>> withoutSingle = new HashMap<>();
 //    private static ArrayList<Set<Line>> finalGroups = new ArrayList<>();
-    private static Map<Integer, ArrayList<Group>> orderedGroup = new TreeMap<>(Collections.reverseOrder());
+    private static Map<Integer, ArrayList<Group>> sortedGroups = new TreeMap<>(Collections.reverseOrder());
     private static Set<Set<Line>> groups = new HashSet<>();
 
     private static int countGroup = 0;
@@ -33,6 +33,7 @@ public class Main {
                     .forEach(entry -> withoutSingle.put(entry.getKey(), entry.getValue()));
 
             grouping();
+            writeToFile();
 
             System.out.println(countGroup);
 
@@ -68,10 +69,10 @@ public class Main {
         finalGrouping();
 
         for (Map.Entry<LineParameter, ArrayList<Line>> entry : withoutSingle.entrySet()) {
-            ArrayList<Group> v = orderedGroup.getOrDefault(entry.getValue().size(), new ArrayList<>());
+            ArrayList<Group> v = sortedGroups.getOrDefault(entry.getValue().size(), new ArrayList<>());
             Group group = new Group(entry.getValue());
             v.add(group);
-            orderedGroup.put(group.size(), v);
+            sortedGroups.put(group.size(), v);
             countGroup++;
         }
     }
@@ -105,22 +106,22 @@ public class Main {
         }
 
         for (Set<Line> lineSubGroup : lineSubGroups) {
-            ArrayList<Group> v = orderedGroup.getOrDefault(lineSubGroup.size(), new ArrayList<>());
+            ArrayList<Group> v = sortedGroups.getOrDefault(lineSubGroup.size(), new ArrayList<>());
             Group group = new Group(new ArrayList<>(lineSubGroup));
             v.add(group);
-            orderedGroup.put(group.size(), v);
+            sortedGroups.put(group.size(), v);
             countGroup++;
         }
     }
 
-    private static void writeToFile(List<Set<Line>> sortedGroups) {
+    private static void writeToFile() {
         int groupNumber = 1;
         StringBuilder builder = new StringBuilder();
-        builder.append("Всего групп: ").append(sortedGroups.size()).append("\n");
-        for(Set<Line> group : sortedGroups) {
+        builder.append("Всего групп: ").append(countGroup).append("\n");
+        for(List<Group> groups : sortedGroups.values()) {
             builder.append("Группа ").append(groupNumber).append("\n");
-            for(Line line : group) {
-                builder.append(line).append("\n");
+            for(Group group : groups) {
+                builder.append(group).append("\n");
             }
             groupNumber++;
         }
