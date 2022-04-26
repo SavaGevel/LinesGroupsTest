@@ -1,6 +1,5 @@
 import java.io.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Main {
 
@@ -8,9 +7,13 @@ public class Main {
     private final static String OUTPUT_FILE_PATH = "src/main/resources/output.txt";
 
     private static Set<Line> uniqueLine = new HashSet<>();
-    private static Map<LineParameter, Set<Line>> groupedByParameters = new HashMap<>();
-    private static Map<LineParameter, Set<Line>> withoutSingle = new HashMap<>();
+    private static Map<LineParameter, ArrayList<Line>> groupedByParameters = new HashMap<>();
+    private static Map<LineParameter, ArrayList<Line>> withoutSingle = new HashMap<>();
+//    private static ArrayList<Set<Line>> finalGroups = new ArrayList<>();
+    private static Map<Integer, ArrayList<Group>> orderedGroup = new TreeMap<>(Collections.reverseOrder());
     private static Set<Set<Line>> groups = new HashSet<>();
+
+    private static int countGroup = 0;
 
     public static void main(String[] args) {
 
@@ -29,33 +32,85 @@ public class Main {
                     .filter(entry -> entry.getValue().size() > 1)
                     .forEach(entry -> withoutSingle.put(entry.getKey(), entry.getValue()));
 
-            boolean isAlreadyInGroup;
+            grouping();
 
-            for(Set<Line> g1 : withoutSingle.values()) {
-                isAlreadyInGroup = false;
-                for(Set<Line> g2 : groups) {
-                    if(isIntersect(g1, g2)) {
-                        g2.addAll(g1);
-                        isAlreadyInGroup = true;
-                        break;
-                    }
-                }
-                if(!isAlreadyInGroup) {
-                    groups.add(g1);
-                }
-            }
-            List<Set<Line>> sortedGroups = groups.stream().sorted(Comparator.comparing(Set::size)).collect(Collectors.toList());
-            Collections.reverse(sortedGroups);
-            writeToFile(sortedGroups);
+            System.out.println(countGroup);
 
-            double time = ((double) (System.currentTimeMillis() - start)) / 1000;
+            System.out.println((((double) (System.currentTimeMillis() - start)) / 1000) + " seconds");
 
-            System.out.println(time);
-            
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    private static void checkLine(String l) {
+
+        String[] lineParams = l.replaceAll("\"", "").split(";", -1);
+
+        if (lineParams.length == 3) {
+            Line line = new Line(lineParams);
+            if (!line.isAllParametersEmpty() && !uniqueLine.contains(line)) {
+                uniqueLine.add(line);
+                for (LineParameter parameter : line.getParameters()) {
+                    if (parameter.isNotEmpty()) {
+                        ArrayList<Line> g = groupedByParameters.getOrDefault(parameter, new ArrayList<>());
+                        g.add(line);
+                        groupedByParameters.put(parameter, g);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void grouping() {
+
+        finalGrouping();
+
+        for (Map.Entry<LineParameter, ArrayList<Line>> entry : withoutSingle.entrySet()) {
+            ArrayList<Group> v = orderedGroup.getOrDefault(entry.getValue().size(), new ArrayList<>());
+            Group group = new Group(entry.getValue());
+            v.add(group);
+            orderedGroup.put(group.size(), v);
+            countGroup++;
+        }
+    }
+
+    private static void finalGrouping() {
+        Map<Line, Integer> lineConnectedParametersCount = new HashMap<>();
+
+        for(Map.Entry<LineParameter, ArrayList<Line>> entry : withoutSingle.entrySet()) {
+            for(Line line : entry.getValue()) {
+                Integer count = lineConnectedParametersCount.getOrDefault(line, 0);
+                lineConnectedParametersCount.put(line, count + 1);
+            }
+        }
+
+        List<Set<Line>> lineSubGroups = new ArrayList<>();
+
+        for(Line line : lineConnectedParametersCount.keySet()) {
+            if(lineConnectedParametersCount.get(line) > 1) {
+
+                Set<Line> lineSubGroup = new HashSet<>();
+
+                for(LineParameter parameter : line.getNotEmptyParameters()) {
+                    if(withoutSingle.containsKey(parameter)) {
+                        lineSubGroup.addAll(withoutSingle.remove(parameter));
+                    }
+                }
+                if(lineSubGroup.size() > 1) {
+                    lineSubGroups.add(lineSubGroup);
+                }
+            }
+        }
+
+        for (Set<Line> lineSubGroup : lineSubGroups) {
+            ArrayList<Group> v = orderedGroup.getOrDefault(lineSubGroup.size(), new ArrayList<>());
+            Group group = new Group(new ArrayList<>(lineSubGroup));
+            v.add(group);
+            orderedGroup.put(group.size(), v);
+            countGroup++;
+        }
     }
 
     private static void writeToFile(List<Set<Line>> sortedGroups) {
@@ -75,34 +130,6 @@ public class Main {
             bw.write(builder.toString());
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    private static boolean isIntersect(Set<Line> g1, Set<Line> g2) {
-        for(Line l : g1) {
-            if(g2.contains(l)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void checkLine(String l) {
-
-        String[] lineParams = l.replaceAll("\"", "").split(";", -1);
-
-        if (lineParams.length == 3) {
-            Line line = new Line(lineParams);
-            if (!line.isAllParametersEmpty() && !uniqueLine.contains(line)) {
-                uniqueLine.add(line);
-                for (LineParameter parameter : line.getParameters()) {
-                    if (!parameter.getValue().isBlank()) {
-                        Set<Line> g = groupedByParameters.getOrDefault(parameter, new HashSet<>());
-                        g.add(line);
-                        groupedByParameters.put(parameter, g);
-                    }
-                }
-            }
         }
     }
 }

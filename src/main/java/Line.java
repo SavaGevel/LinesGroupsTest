@@ -5,24 +5,25 @@ import java.util.Objects;
 public class Line {
 
     private List<LineParameter> parameters = new ArrayList<>();
+    private final boolean isAllParametersEmpty;
 
     public Line(String[] l) {
         parameters.add(new LineParameter(ParameterPosition.FIRST, l[0]));
-        parameters.add(new LineParameter(ParameterPosition.FIRST, l[1]));
-        parameters.add(new LineParameter(ParameterPosition.FIRST, l[2]));
+        parameters.add(new LineParameter(ParameterPosition.SECOND, l[1]));
+        parameters.add(new LineParameter(ParameterPosition.THIRD, l[2]));
+        isAllParametersEmpty = l[0].isBlank() && l[1].isBlank() && l[2].isBlank();
+    }
+
+    public boolean isAllParametersEmpty() {
+        return isAllParametersEmpty;
     }
 
     public List<LineParameter> getParameters() {
         return parameters;
     }
 
-    public boolean isAllParametersEmpty() {
-        for(LineParameter parameter : parameters) {
-            if(!parameter.getValue().isBlank()) {
-                return false;
-            }
-        }
-        return true;
+    public List<LineParameter> getNotEmptyParameters() {
+        return parameters.stream().filter(LineParameter::isNotEmpty).toList();
     }
 
     @Override

@@ -4,10 +4,16 @@ public class LineParameter {
 
     private final ParameterPosition position;
     private final String value;
+    private boolean notEmpty;
 
     public LineParameter(ParameterPosition position, String value) {
         this.position = position;
         this.value = value;
+        notEmpty = !value.isBlank();
+    }
+
+    public boolean isNotEmpty() {
+        return notEmpty;
     }
 
     public ParameterPosition getPosition() {
